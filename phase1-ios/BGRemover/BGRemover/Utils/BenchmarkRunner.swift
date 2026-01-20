@@ -68,10 +68,11 @@ class BenchmarkRunner: ObservableObject {
             currentStatus = "Initializing \(approach.name)..."
 
             // Initialize the approach (cold start)
-            await withCheckedContinuation { continuation in
-                approach.initialize { result in
-                    continuation.resume()
-                }
+            do {
+                try await approach.initialize()
+            } catch {
+                print("❌ Error initializing \(approach.name): \(error)")
+                continue
             }
 
             // Test each image
@@ -82,14 +83,9 @@ class BenchmarkRunner: ObservableObject {
                 for iteration in 1...config.iterations {
                     currentStatus = "Testing \(approach.name) on \(testImage.name) (iteration \(iteration)/\(config.iterations))..."
 
-                    let result = await withCheckedContinuation { continuation in
-                        approach.removeBackground(from: testImage.image) { result in
-                            continuation.resume(returning: result)
-                        }
-                    }
+                    do {
+                        let removalResult = try await approach.removeBackground(from: testImage.image)
 
-                    switch result {
-                    case .success(let removalResult):
                         let benchmarkResult = BenchmarkResult(
                             approachName: approach.name,
                             imageName: testImage.name,
@@ -104,8 +100,7 @@ class BenchmarkRunner: ObservableObject {
                         }
 
                         iterationResults.append(benchmarkResult)
-
-                    case .failure(let error):
+                    } catch {
                         print("❌ Error processing \(testImage.name) with \(approach.name): \(error)")
                     }
 

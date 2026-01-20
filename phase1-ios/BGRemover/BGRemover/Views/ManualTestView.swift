@@ -189,17 +189,19 @@ struct ManualTestView: View {
         maskImage = nil
         lastMetrics = nil
 
-        appState.selectedApproach.removeBackground(from: image) { result in
-            DispatchQueue.main.async {
-                isProcessing = false
+        Task {
+            do {
+                let removalResult = try await appState.selectedApproach.removeBackground(from: image)
 
-                switch result {
-                case .success(let removalResult):
+                await MainActor.run {
+                    isProcessing = false
                     processedImage = removalResult.processedImage
                     maskImage = removalResult.mask
                     lastMetrics = removalResult.metrics
-
-                case .failure(let error):
+                }
+            } catch {
+                await MainActor.run {
+                    isProcessing = false
                     print("Error: \(error.localizedDescription)")
                     // 🎯 TODO: Show error alert to user
                 }

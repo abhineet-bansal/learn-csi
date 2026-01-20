@@ -36,11 +36,8 @@ protocol BGRemovalApproach {
     var name: String { get }
     var isModelLoaded: Bool { get }
     var modelSizeInfo: ModelSizeInfo? { get }
-    func initialize(completion: @escaping (Result<Void, Error>) -> Void)
-    func removeBackground(
-        from image: UIImage,
-        completion: @escaping (Result<BGRemovalResult, Error>) -> Void
-    )
+    func initialize() async throws
+    func removeBackground(from image: UIImage) async throws -> BGRemovalResult
     func cleanup()
 }
 
