@@ -1,0 +1,170 @@
+//
+//  BenchmarkRunner.swift
+//  BGRemover
+//
+//  Infrastructure for running benchmark tests
+//
+
+import UIKit
+import Foundation
+internal import Combine
+
+/// Single benchmark result for one image + approach combination
+struct BenchmarkResult {
+    let approachName: String
+    let imageName: String
+    let imageSize: CGSize
+    let metrics: InferenceMetrics
+    let timestamp: Date
+
+    // Quality metrics (optional, if ground truth is available)
+    var qualityMetrics: QualityMetrics?
+}
+
+/// Quality metrics (for images with ground truth masks)
+struct QualityMetrics {
+    let iou: Double                         // Intersection over Union
+    let pixelAccuracy: Double
+    let f1Score: Double
+}
+
+/// Configuration for benchmark runs
+struct BenchmarkConfig {
+    let iterations: Int                     // Number of times to run each image (default: 3, report median)
+
+    static let `default` = BenchmarkConfig(
+        iterations: 3
+    )
+}
+
+/// Runs automated benchmarks across approaches and test images
+@MainActor
+class BenchmarkRunner: ObservableObject {
+    @Published var isRunning = false
+    @Published var progress: Double = 0.0
+    @Published var currentStatus = ""
+    @Published var results: [BenchmarkResult] = []
+
+    private let config: BenchmarkConfig
+
+    init(config: BenchmarkConfig = .default) {
+        self.config = config
+    }
+
+    /// Run benchmarks for all approaches on all test images
+    func runBenchmarks(
+        approaches: [BGRemovalApproach],
+        testImages: [(name: String, image: UIImage, groundTruth: UIImage?)]
+    ) async {
+        isRunning = true
+        results = []
+        progress = 0.0
+
+        let totalRuns = approaches.count * testImages.count * config.iterations
+        var completedRuns = 0
+
+        // Iterate through each approach
+        for approach in approaches {
+            currentStatus = "Initializing \(approach.name)..."
+
+            // Initialize the approach (cold start)
+            await withCheckedContinuation { continuation in
+                approach.initialize { result in
+                    continuation.resume()
+                }
+            }
+
+            // Test each image
+            for testImage in testImages {
+                // Run multiple iterations and collect results
+                var iterationResults: [BenchmarkResult] = []
+
+                for iteration in 1...config.iterations {
+                    currentStatus = "Testing \(approach.name) on \(testImage.name) (iteration \(iteration)/\(config.iterations))..."
+
+                    let result = await withCheckedContinuation { continuation in
+                        approach.removeBackground(from: testImage.image) { result in
+                            continuation.resume(returning: result)
+                        }
+                    }
+
+                    switch result {
+                    case .success(let removalResult):
+                        let benchmarkResult = BenchmarkResult(
+                            approachName: approach.name,
+                            imageName: testImage.name,
+                            imageSize: testImage.image.size,
+                            metrics: removalResult.metrics,
+                            timestamp: Date()
+                        )
+
+                        // Calculate quality metrics if ground truth is available
+                        if let groundTruth = testImage.groundTruth, let mask = removalResult.mask {
+                            // TODO: Calculate quality metrics
+                        }
+
+                        iterationResults.append(benchmarkResult)
+
+                    case .failure(let error):
+                        print("❌ Error processing \(testImage.name) with \(approach.name): \(error)")
+                    }
+
+                    completedRuns += 1
+                    progress = Double(completedRuns) / Double(totalRuns)
+                }
+
+                // Use median result (iteration 2 out of 3)
+                if let medianResult = iterationResults.sorted(by: { $0.metrics.inferenceTime < $1.metrics.inferenceTime })[safe: config.iterations / 2] {
+                    results.append(medianResult)
+                }
+            }
+
+            // Cleanup after each approach
+            approach.cleanup()
+        }
+
+        currentStatus = "Benchmark complete! Processed \(completedRuns) runs."
+        isRunning = false
+
+        printSummary()
+    }
+
+    /// Print summary to console
+    func printSummary() {
+        print("\n" + String(repeating: "=", count: 80))
+        print("BENCHMARK SUMMARY")
+        print(String(repeating: "=", count: 80))
+
+        let groupedByApproach = Dictionary(grouping: results, by: { $0.approachName })
+
+        for (approach, approachResults) in groupedByApproach.sorted(by: { $0.key < $1.key }) {
+            print("\n📱 \(approach)")
+            print(String(repeating: "-", count: 80))
+
+            let avgInference = approachResults.map { $0.metrics.inferenceTimeMs }.reduce(0, +) / Double(approachResults.count)
+            let avgMemory = approachResults.map { Double($0.metrics.memoryUsageMB) }.reduce(0, +) / Double(approachResults.count)
+
+            print(String(format: "  Avg Inference Time: %.2f ms", avgInference))
+            print(String(format: "  Avg Memory Usage: %.2f MB", avgMemory))
+
+            if let coldStart = approachResults.first(where: { $0.metrics.isColdStart }) {
+                if let loadTime = coldStart.metrics.modelLoadTime {
+                    print(String(format: "  Cold Start Time: %.2f ms", loadTime * 1000))
+                }
+            }
+
+            let avgIoU = approachResults.compactMap { $0.qualityMetrics?.iou }.reduce(0, +) / Double(approachResults.count)
+            print(String(format: "  Avg IoU: %.4f", avgIoU))
+        }
+
+        print("\n" + String(repeating: "=", count: 80))
+    }
+}
+
+// MARK: - Helper Extensions
+
+extension Array {
+    subscript(safe index: Int) -> Element? {
+        return indices.contains(index) ? self[index] : nil
+    }
+}
