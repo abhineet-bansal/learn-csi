@@ -28,6 +28,7 @@ class VisionAPIApproach: BGRemovalApproach {
             throw BGRemovalError.invalidImage
         }
         
+        let memoryBefore = ImageProcessingHelpers.getMemoryUsage()
         let startTime = Date()
         let handler = ImageRequestHandler(cgImage)
         
@@ -45,7 +46,8 @@ class VisionAPIApproach: BGRemovalApproach {
         }
         
         let inferenceTime = Date().timeIntervalSince(startTime)
-        let memoryUsage = ImageProcessingHelpers.getMemoryUsage()
+        let memoryAfter = ImageProcessingHelpers.getMemoryUsage()
+        let memoryUsage = memoryAfter > memoryBefore ? memoryAfter - memoryBefore : 0
 
         let metrics = InferenceMetrics(inferenceTime: inferenceTime, peakMemoryUsage: memoryUsage, modelLoadTime: nil, isColdStart: false)
         return BGRemovalResult(processedImage: processedImage, mask: maskedImage, metrics: metrics)

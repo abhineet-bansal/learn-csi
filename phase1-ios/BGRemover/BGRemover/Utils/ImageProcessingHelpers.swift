@@ -294,11 +294,42 @@ enum ImageProcessingHelpers {
     // MARK: - Image Resizing
 
     /// Resize image to target size (useful for model input preprocessing)
+    /// - Parameters:
+    ///   - image: Source image to resize
+    ///   - targetSize: Target size in points
+    /// - Returns: Resized image with the same scale as the input image
     static func resizeImage(_ image: UIImage, to targetSize: CGSize) -> UIImage? {
-        let renderer = UIGraphicsImageRenderer(size: targetSize)
-        return renderer.image { _ in
-            image.draw(in: CGRect(origin: .zero, size: targetSize))
+        // Calculate pixel dimensions based on target size and image scale
+        let scale = image.scale
+        let pixelWidth = Int(targetSize.width * scale)
+        let pixelHeight = Int(targetSize.height * scale)
+
+        // Use CGContext for precise control over pixel dimensions
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+        let bitmapInfo = CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue)
+
+        guard let context = CGContext(
+            data: nil,
+            width: pixelWidth,
+            height: pixelHeight,
+            bitsPerComponent: 8,
+            bytesPerRow: pixelWidth * 4,
+            space: colorSpace,
+            bitmapInfo: bitmapInfo.rawValue
+        ) else {
+            return nil
         }
+
+        // Draw the image scaled to fit the context
+        context.interpolationQuality = .high
+        context.draw(image.cgImage!, in: CGRect(x: 0, y: 0, width: pixelWidth, height: pixelHeight))
+
+        guard let resizedCGImage = context.makeImage() else {
+            return nil
+        }
+
+        // Create UIImage with the same scale as input
+        return UIImage(cgImage: resizedCGImage, scale: scale, orientation: image.imageOrientation)
     }
 
     /// Resize image maintaining aspect ratio
