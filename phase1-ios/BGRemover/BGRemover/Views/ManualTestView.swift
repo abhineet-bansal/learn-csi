@@ -17,6 +17,8 @@ struct ManualTestView: View {
     @State private var isProcessing = false
     @State private var lastMetrics: InferenceMetrics?
     @State private var showImagePicker = false
+    @State private var fullscreenImage: UIImage?
+    @State private var fullscreenImageTitle: String = ""
 
     var body: some View {
         ScrollView {
@@ -108,6 +110,10 @@ struct ManualTestView: View {
                                             .frame(width: 250, height: 250)
                                             .background(Color(.systemGray6))
                                             .cornerRadius(12)
+                                            .onTapGesture {
+                                                fullscreenImageTitle = "Original"
+                                                fullscreenImage = original
+                                            }
                                     }
                                 }
 
@@ -125,6 +131,10 @@ struct ManualTestView: View {
                                             .frame(width: 250, height: 250)
                                             .background(Color(.systemGray6))
                                             .cornerRadius(12)
+                                            .onTapGesture {
+                                                fullscreenImageTitle = "Mask"
+                                                fullscreenImage = mask
+                                            }
                                     }
                                 }
 
@@ -140,11 +150,11 @@ struct ManualTestView: View {
                                             .resizable()
                                             .scaledToFit()
                                             .frame(width: 250, height: 250)
-                                            .background(
-                                                // Checkerboard pattern to show transparency
-                                                CheckerboardPattern()
-                                            )
                                             .cornerRadius(12)
+                                            .onTapGesture {
+                                                fullscreenImageTitle = "Result"
+                                                fullscreenImage = processed
+                                            }
                                     }
                                 }
                             }
@@ -179,6 +189,12 @@ struct ManualTestView: View {
             }
             .padding(.vertical)
         }
+        .sheet(item: Binding(
+            get: { fullscreenImage.map { FullscreenImageItem(image: $0, title: fullscreenImageTitle) } },
+            set: { fullscreenImage = $0?.image }
+        )) { item in
+            FullscreenImageView(image: item.image, title: item.title)
+        }
     }
 
     private func processImage() {
@@ -191,6 +207,8 @@ struct ManualTestView: View {
 
         Task {
             do {
+                try await appState.selectedApproach.initialize()
+                
                 let removalResult = try await appState.selectedApproach.removeBackground(from: image)
 
                 await MainActor.run {
@@ -258,6 +276,39 @@ struct CheckerboardPattern: View {
         }
     }
 }
+
+// MARK: - Fullscreen Image View
+
+struct FullscreenImageItem: Identifiable {
+    let id = UUID()
+    let image: UIImage
+    let title: String
+}
+
+struct FullscreenImageView: View {
+    let image: UIImage
+    let title: String
+    @Environment(\.dismiss) var dismiss
+
+    var body: some View {
+        NavigationView {
+            Image(uiImage: image)
+                .resizable()
+                .scaledToFit()
+                .navigationTitle(title)
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button("Done") {
+                            dismiss()
+                        }
+                    }
+                }
+        }
+    }
+}
+
+// MARK: - Image Picker
 
 // Simple Image Picker
 struct ImagePicker: UIViewControllerRepresentable {

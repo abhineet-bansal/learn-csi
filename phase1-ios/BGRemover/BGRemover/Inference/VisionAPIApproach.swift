@@ -36,7 +36,7 @@ class VisionAPIApproach: BGRemovalApproach {
         }
 
         let maskedImageBuffer = try result.generateMask(for: result.allInstances)
-        guard let maskedImage = ImageProcessingHelpers.pixelBufferToUIImage(maskedImageBuffer) else {
+        guard let maskedImage = ImageProcessingHelpers.pixelBufferToUIImage(maskedImageBuffer, orientation: image.imageOrientation) else {
             throw BGRemovalError.processingFailed("Invalid result, couldn't create mask")
         }
         

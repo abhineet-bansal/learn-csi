@@ -14,7 +14,7 @@ enum ImageProcessingHelpers {
     // MARK: - Image Conversion Utilities
 
     /// Convert CVPixelBuffer to UIImage
-    static func pixelBufferToUIImage(_ pixelBuffer: CVPixelBuffer) -> UIImage? {
+    static func pixelBufferToUIImage(_ pixelBuffer: CVPixelBuffer, orientation: UIImage.Orientation = .up) -> UIImage? {
         let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
         let context = CIContext()
 
@@ -22,7 +22,7 @@ enum ImageProcessingHelpers {
             return nil
         }
 
-        return UIImage(cgImage: cgImage)
+        return UIImage(cgImage: cgImage, scale: 1.0, orientation: orientation)
     }
 
     /// Convert UIImage to CVPixelBuffer
@@ -113,7 +113,7 @@ enum ImageProcessingHelpers {
             return nil
         }
 
-        return UIImage(cgImage: cgImage)
+        return UIImage(cgImage: cgImage, scale: original.scale, orientation: original.imageOrientation)
     }
 
     /// Create a transparent background image by applying mask
