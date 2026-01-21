@@ -32,7 +32,7 @@ class VisionAPIApproach: BGRemovalApproach {
         let handler = ImageRequestHandler(cgImage)
         
         guard let result = try await handler.perform(request) else {
-            throw BGRemovalError.processingFailed("No result")
+            throw BGRemovalError.processingFailed("Vision API returned nil results")
         }
 
         let maskedImageBuffer = try result.generateMask(for: result.allInstances)

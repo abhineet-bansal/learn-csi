@@ -66,6 +66,7 @@ class BenchmarkRunner: ObservableObject {
         // Iterate through each approach
         for approach in approaches {
             currentStatus = "Initializing \(approach.name)..."
+            print(currentStatus)
 
             // Initialize the approach (cold start)
             do {
@@ -82,6 +83,7 @@ class BenchmarkRunner: ObservableObject {
 
                 for iteration in 1...config.iterations {
                     currentStatus = "Testing \(approach.name) on \(testImage.name) (iteration \(iteration)/\(config.iterations))..."
+                    print(currentStatus)
 
                     do {
                         let removalResult = try await approach.removeBackground(from: testImage.image)
@@ -119,6 +121,7 @@ class BenchmarkRunner: ObservableObject {
         }
 
         currentStatus = "Benchmark complete! Processed \(completedRuns) runs."
+        print(currentStatus)
         isRunning = false
 
         printSummary()

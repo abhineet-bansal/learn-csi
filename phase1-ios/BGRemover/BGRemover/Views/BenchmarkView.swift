@@ -138,11 +138,25 @@ struct BenchmarkView: View {
     }
 
     private func runBenchmark() {
-        // TODO: Load actual test images
-        // For now, creating a dummy test image
-        let testImages: [(name: String, image: UIImage, groundTruth: UIImage?)] = [
-            ("sample", UIImage(systemName: "photo")!, nil)
-        ]
+        // Load all test images from assets (img01 - img30 with corresponding masks)
+        var testImages: [(name: String, image: UIImage, groundTruth: UIImage?)] = []
+
+        for i in 1...30 {
+            let imageName = String(format: "img%02d", i)
+            let maskName = String(format: "mask%02d", i)
+
+            if let image = UIImage(named: imageName),
+               let mask = UIImage(named: maskName) {
+                testImages.append((imageName, image, mask))
+            } else {
+                print("⚠️ Warning: Could not load \(imageName) or \(maskName)")
+            }
+        }
+
+        guard !testImages.isEmpty else {
+            print("❌ Error: No test images loaded")
+            return
+        }
 
         let selectedApproachObjects = appState.availableApproaches.filter { selectedApproaches.contains($0.name) }
 
