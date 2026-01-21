@@ -38,11 +38,14 @@ class CoreMLApproach: BGRemovalApproach {
             throw BGRemovalError.invalidImage
         }
 
-        // Run inference with timing
+        // Run inference with timing (async on background queue)
         let startTime = Date()
-        guard let result = try? model.prediction(image: cvPixelBuffer) else {
-            throw BGRemovalError.processingFailed("CoreML prediction failed")
-        }
+        let result = try await Task.detached(priority: .userInitiated) {
+            guard let prediction = try? await model.prediction(image: cvPixelBuffer) else {
+                throw BGRemovalError.processingFailed("CoreML prediction failed")
+            }
+            return prediction
+        }.value
         let inferenceTime = Date().timeIntervalSince(startTime)
 
         // Convert MLMultiArray segmentation to binary mask
