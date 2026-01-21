@@ -11,17 +11,44 @@ import Vision
 class VisionAPIApproach: BGRemovalApproach {
     let name = "Vision API"
     private(set) var isModelLoaded = false
+    private var maskRequest: GenerateForegroundInstanceMaskRequest?
     var modelSizeInfo: ModelSizeInfo? = nil
 
     func initialize() async throws {
-        // TODO: To implement
+        maskRequest = GenerateForegroundInstanceMaskRequest()
         isModelLoaded = true
     }
 
     func removeBackground(from image: UIImage) async throws -> BGRemovalResult {
-        // TODO: To implement
-        let metrics = InferenceMetrics(inferenceTime: 0, peakMemoryUsage: 0, modelLoadTime: nil, isColdStart: false)
-        return BGRemovalResult(processedImage: image, mask: nil, metrics: metrics)
+        guard isModelLoaded, let request = maskRequest else {
+            throw BGRemovalError.modelNotLoaded
+        }
+        
+        guard let cgImage = image.cgImage else {
+            throw BGRemovalError.invalidImage
+        }
+        
+        let startTime = Date()
+        let handler = ImageRequestHandler(cgImage)
+        
+        guard let result = try await handler.perform(request) else {
+            throw BGRemovalError.processingFailed("No result")
+        }
+
+        let maskedImageBuffer = try result.generateMask(for: result.allInstances)
+        guard let maskedImage = ImageProcessingHelpers.pixelBufferToUIImage(maskedImageBuffer) else {
+            throw BGRemovalError.processingFailed("Invalid result, couldn't create mask")
+        }
+        
+        guard let processedImage = ImageProcessingHelpers.applyMask(maskedImage, to: image) else {
+            throw BGRemovalError.processingFailed("Invalid result, couldn't apply mask")
+        }
+        
+        let inferenceTime = Date().timeIntervalSince(startTime)
+        let memoryUsage = ImageProcessingHelpers.getMemoryUsage()
+
+        let metrics = InferenceMetrics(inferenceTime: inferenceTime, peakMemoryUsage: memoryUsage, modelLoadTime: nil, isColdStart: false)
+        return BGRemovalResult(processedImage: processedImage, mask: maskedImage, metrics: metrics)
     }
 
     func cleanup() {
