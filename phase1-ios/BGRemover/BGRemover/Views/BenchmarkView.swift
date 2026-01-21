@@ -80,51 +80,7 @@ struct BenchmarkView: View {
 
                         // Summary Table
                         ForEach(groupedResults(), id: \.0) { approach, results in
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text(approach)
-                                    .font(.subheadline)
-                                    .fontWeight(.semibold)
-
-                                let avgInference = results.map { $0.metrics.inferenceTimeMs }.reduce(0, +) / Double(results.count)
-                                let avgMemory = results.map { $0.metrics.memoryUsageMB }.reduce(0, +) / Double(results.count)
-
-                                HStack {
-                                    VStack(alignment: .leading) {
-                                        Text("Avg Inference")
-                                            .font(.caption2)
-                                            .foregroundColor(.secondary)
-                                        Text(String(format: "%.2f ms", avgInference))
-                                            .font(.caption)
-                                            .fontWeight(.medium)
-                                    }
-
-                                    Spacer()
-
-                                    VStack(alignment: .leading) {
-                                        Text("Avg Memory")
-                                            .font(.caption2)
-                                            .foregroundColor(.secondary)
-                                        Text(String(format: "%.2f MB", avgMemory))
-                                            .font(.caption)
-                                            .fontWeight(.medium)
-                                    }
-
-                                    Spacer()
-
-                                    VStack(alignment: .leading) {
-                                        Text("Images")
-                                            .font(.caption2)
-                                            .foregroundColor(.secondary)
-                                        Text("\(results.count)")
-                                            .font(.caption)
-                                            .fontWeight(.medium)
-                                    }
-                                }
-                                .padding(.vertical, 4)
-                            }
-                            .padding()
-                            .background(Color(.systemGray6))
-                            .cornerRadius(8)
+                            BenchmarkResultCard(approach: approach, results: results)
                         }
                     }
                     .padding()
@@ -174,6 +130,81 @@ struct BenchmarkView: View {
     private func groupedResults() -> [(String, [BenchmarkResult])] {
         let grouped = Dictionary(grouping: benchmarkRunner.results, by: { $0.approachName })
         return grouped.sorted(by: { $0.key < $1.key })
+    }
+}
+
+// MARK: - Supporting Views
+
+struct BenchmarkResultCard: View {
+    let approach: String
+    let results: [BenchmarkResult]
+
+    private var avgInference: Double {
+        results.map { $0.metrics.inferenceTimeMs }.reduce(0, +) / Double(results.count)
+    }
+
+    private var avgMemory: Double {
+        results.map { $0.metrics.memoryUsageMB }.reduce(0, +) / Double(results.count)
+    }
+
+    private var avgPixelAccuracy: Double {
+        results.compactMap { $0.qualityMetrics?.pixelAccuracy }.reduce(0, +) / Double(max(results.count, 1))
+    }
+
+    private var avgF1: Double {
+        results.compactMap { $0.qualityMetrics?.f1Score }.reduce(0, +) / Double(max(results.count, 1))
+    }
+
+    private var avgIoU: Double {
+        results.compactMap { $0.qualityMetrics?.iou }.reduce(0, +) / Double(max(results.count, 1))
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(approach)
+                .font(.subheadline)
+                .fontWeight(.semibold)
+
+            VStack(spacing: 8) {
+                // Performance metrics
+                HStack {
+                    MetricCell(title: "Avg Inference", value: String(format: "%.2f ms", avgInference))
+                    Spacer()
+                    MetricCell(title: "Avg Memory", value: String(format: "%.2f MB", avgMemory))
+                    Spacer()
+                    MetricCell(title: "Images", value: "\(results.count)")
+                }
+
+                // Quality metrics
+                HStack {
+                    MetricCell(title: "Avg IoU", value: String(format: "%.4f", avgIoU))
+                    Spacer()
+                    MetricCell(title: "Avg Pixel Accuracy", value: String(format: "%.4f", avgPixelAccuracy))
+                    Spacer()
+                    MetricCell(title: "Avg F1 Score", value: String(format: "%.4f", avgF1))
+                }
+            }
+            .padding(.vertical, 4)
+        }
+        .padding()
+        .background(Color(.systemGray6))
+        .cornerRadius(8)
+    }
+}
+
+struct MetricCell: View {
+    let title: String
+    let value: String
+
+    var body: some View {
+        VStack(alignment: .leading) {
+            Text(title)
+                .font(.caption2)
+                .foregroundColor(.secondary)
+            Text(value)
+                .font(.caption)
+                .fontWeight(.medium)
+        }
     }
 }
 

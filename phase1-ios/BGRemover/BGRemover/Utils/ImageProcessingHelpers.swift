@@ -10,6 +10,73 @@ import CoreImage
 import CoreVideo
 
 enum ImageProcessingHelpers {
+    // MARK: - Ground Truth and Result Comparison
+    
+    /// Calculate quality metrics by comparing ground truth mask with predicted mask
+    static func calculateQualityMetrics(groundTruth: UIImage, predicted: UIImage) -> QualityMetrics? {
+        guard let gtCGImage = groundTruth.cgImage,
+              let predCGImage = predicted.cgImage else {
+            print("⚠️ Warning: Could not get CGImage from ground truth or predicted mask")
+            return nil
+        }
+        
+        let width = gtCGImage.width
+        let height = gtCGImage.height
+
+        // Ensure images are the same size
+        guard width == predCGImage.width && height == predCGImage.height else {
+            print("⚠️ Warning: Mask dimensions don't match: GT(\(gtCGImage.width)x\(gtCGImage.height)) vs Pred(\(predCGImage.width)x\(predCGImage.height))")
+            return nil
+        }
+
+        // Extract pixel data
+        guard let gtPixels = extractGrayscalePixels(from: gtCGImage),
+              let predPixels = extractGrayscalePixels(from: predCGImage) else {
+            print("⚠️ Warning: Could not extract pixel data")
+            return nil
+        }
+
+        // Calculate confusion matrix values
+        var truePositive = 0   // Predicted foreground, actually foreground
+        var trueNegative = 0   // Predicted background, actually background
+        var falsePositive = 0  // Predicted foreground, actually background
+        var falseNegative = 0  // Predicted background, actually foreground
+
+        let threshold: UInt8 = 128  // Threshold for considering a pixel as foreground
+
+        for i in 0..<(width * height) {
+            let gtIsForeground = gtPixels[i] > threshold
+            let predIsForeground = predPixels[i] > threshold
+
+            if gtIsForeground && predIsForeground {
+                truePositive += 1
+            } else if !gtIsForeground && !predIsForeground {
+                trueNegative += 1
+            } else if predIsForeground && !gtIsForeground {
+                falsePositive += 1
+            } else if !predIsForeground && gtIsForeground {
+                falseNegative += 1
+            }
+        }
+
+        // Calculate metrics
+        let totalPixels = Double(width * height)
+        let pixelAccuracy = Double(truePositive + trueNegative) / totalPixels
+
+        let intersection = Double(truePositive)
+        let union = Double(truePositive + falsePositive + falseNegative)
+        let iou = union > 0 ? intersection / union : 0.0
+
+        let f1Denominator = Double(2 * truePositive + falsePositive + falseNegative)
+        let f1Score = f1Denominator > 0 ? (2.0 * Double(truePositive)) / f1Denominator : 0.0
+
+        return QualityMetrics(
+            iou: iou,
+            pixelAccuracy: pixelAccuracy,
+            f1Score: f1Score
+        )
+    }
+
 
     // MARK: - Image Conversion Utilities
 
@@ -73,6 +140,32 @@ enum ImageProcessingHelpers {
         CVPixelBufferUnlockBaseAddress(buffer, CVPixelBufferLockFlags(rawValue: 0))
 
         return buffer
+    }
+    
+    /// Extract grayscale pixel values from CGImage
+    static func extractGrayscalePixels(from cgImage: CGImage) -> [UInt8]? {
+        let width = cgImage.width
+        let height = cgImage.height
+        let bytesPerPixel = 1
+        let bytesPerRow = bytesPerPixel * width
+        let bitsPerComponent = 8
+
+        var pixelData = [UInt8](repeating: 0, count: width * height)
+
+        guard let context = CGContext(
+            data: &pixelData,
+            width: width,
+            height: height,
+            bitsPerComponent: bitsPerComponent,
+            bytesPerRow: bytesPerRow,
+            space: CGColorSpaceCreateDeviceGray(),
+            bitmapInfo: CGImageAlphaInfo.none.rawValue
+        ) else {
+            return nil
+        }
+
+        context.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
+        return pixelData
     }
 
     // MARK: - Background Removal

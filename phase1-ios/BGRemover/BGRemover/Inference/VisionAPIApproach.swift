@@ -35,7 +35,7 @@ class VisionAPIApproach: BGRemovalApproach {
             throw BGRemovalError.processingFailed("Vision API returned nil results")
         }
 
-        let maskedImageBuffer = try result.generateMask(for: result.allInstances)
+        let maskedImageBuffer = try result.generateScaledMask(for: result.allInstances, scaledToImageFrom: handler)
         guard let maskedImage = ImageProcessingHelpers.pixelBufferToUIImage(maskedImageBuffer, orientation: image.imageOrientation) else {
             throw BGRemovalError.processingFailed("Invalid result, couldn't create mask")
         }

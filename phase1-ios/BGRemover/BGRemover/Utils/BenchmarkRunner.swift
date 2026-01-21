@@ -88,7 +88,7 @@ class BenchmarkRunner: ObservableObject {
                     do {
                         let removalResult = try await approach.removeBackground(from: testImage.image)
 
-                        let benchmarkResult = BenchmarkResult(
+                        var benchmarkResult = BenchmarkResult(
                             approachName: approach.name,
                             imageName: testImage.name,
                             imageSize: testImage.image.size,
@@ -98,7 +98,7 @@ class BenchmarkRunner: ObservableObject {
 
                         // Calculate quality metrics if ground truth is available
                         if let groundTruth = testImage.groundTruth, let mask = removalResult.mask {
-                            // TODO: Calculate quality metrics
+                            benchmarkResult.qualityMetrics = ImageProcessingHelpers.calculateQualityMetrics(groundTruth: groundTruth, predicted: mask)
                         }
 
                         iterationResults.append(benchmarkResult)
@@ -151,8 +151,17 @@ class BenchmarkRunner: ObservableObject {
                 }
             }
 
-            let avgIoU = approachResults.compactMap { $0.qualityMetrics?.iou }.reduce(0, +) / Double(approachResults.count)
-            print(String(format: "  Avg IoU: %.4f", avgIoU))
+            // Quality metrics (if ground truth available)
+            let resultsWithQuality = approachResults.compactMap { $0.qualityMetrics }
+            if !resultsWithQuality.isEmpty {
+                let avgIoU = resultsWithQuality.map { $0.iou }.reduce(0, +) / Double(resultsWithQuality.count)
+                let avgPixelAccuracy = resultsWithQuality.map { $0.pixelAccuracy }.reduce(0, +) / Double(resultsWithQuality.count)
+                let avgF1Score = resultsWithQuality.map { $0.f1Score }.reduce(0, +) / Double(resultsWithQuality.count)
+
+                print(String(format: "  Avg IoU: %.4f", avgIoU))
+                print(String(format: "  Avg Pixel Accuracy: %.4f", avgPixelAccuracy))
+                print(String(format: "  Avg F1 Score: %.4f", avgF1Score))
+            }
         }
 
         print("\n" + String(repeating: "=", count: 80))
