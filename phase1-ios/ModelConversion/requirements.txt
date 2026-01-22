@@ -1,0 +1,7 @@
+pillow
+torch
+torchvision
+transformers
+coremltools
+kornia
+timm
