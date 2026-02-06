@@ -2,7 +2,7 @@
 //  BenchmarkRunner.swift
 //  BGRemover
 //
-//  Infrastructure for running benchmark tests
+//  Created by Abhineet Bansal on 27/1/2026.
 //
 
 import UIKit
@@ -16,8 +16,6 @@ struct BenchmarkResult {
     let imageSize: CGSize
     let metrics: InferenceMetrics
     let timestamp: Date
-
-    // Quality metrics (optional, if ground truth is available)
     var qualityMetrics: QualityMetrics?
 }
 
@@ -98,7 +96,7 @@ class BenchmarkRunner: ObservableObject {
 
                         // Calculate quality metrics if ground truth is available
                         if let groundTruth = testImage.groundTruth, let mask = removalResult.mask {
-                            benchmarkResult.qualityMetrics = ImageProcessingHelpers.calculateQualityMetrics(groundTruth: groundTruth, predicted: mask)
+                            benchmarkResult.qualityMetrics = MetricsHelper.calculateQualityMetrics(groundTruth: groundTruth, predicted: mask)
                         }
 
                         iterationResults.append(benchmarkResult)
@@ -145,13 +143,7 @@ class BenchmarkRunner: ObservableObject {
             print(String(format: "  Avg Inference Time: %.2f ms", avgInference))
             print(String(format: "  Avg Memory Usage: %.2f MB", avgMemory))
 
-            if let coldStart = approachResults.first(where: { $0.metrics.isColdStart }) {
-                if let loadTime = coldStart.metrics.modelLoadTime {
-                    print(String(format: "  Cold Start Time: %.2f ms", loadTime * 1000))
-                }
-            }
-
-            // Quality metrics (if ground truth available)
+            // Quality metrics (if available)
             let resultsWithQuality = approachResults.compactMap { $0.qualityMetrics }
             if !resultsWithQuality.isEmpty {
                 let avgIoU = resultsWithQuality.map { $0.iou }.reduce(0, +) / Double(resultsWithQuality.count)

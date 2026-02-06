@@ -12,3 +12,6 @@ DerivedData/
 
 # Python
 .venv/
+
+# Claude
+.claude/

@@ -4,6 +4,8 @@
 //
 //  Centralized app state management
 //
+//  Created by Abhineet Bansal on 27/1/2026.
+//
 
 import Foundation
 import UIKit

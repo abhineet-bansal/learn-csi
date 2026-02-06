@@ -2,7 +2,7 @@
 //  ContentView.swift
 //  BGRemover
 //
-//  Created by Abhineet Bansal on 20/1/2026.
+//  Created by Abhineet Bansal on 27/1/2026.
 //
 
 import SwiftUI

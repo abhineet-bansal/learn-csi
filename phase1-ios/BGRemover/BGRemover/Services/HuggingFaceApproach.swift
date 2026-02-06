@@ -1,8 +1,9 @@
 //
 //  HuggingFaceApproach.swift
 //  BGRemover
+//  Approach #3 for background removal: Using BRIA RMBG1.4 from Hugging Face
 //
-//  Approach #3 for background removal: Using an open source model from hugging face
+//  Created by Abhineet Bansal on 27/1/2026.
 //
 
 import UIKit
@@ -12,7 +13,6 @@ class HuggingFaceApproach: BGRemovalApproach {
     let name = "HuggingFace"
     private(set) var isModelLoaded = false
     private var briaRmbgModel: BriaRMBG1_4?
-    var modelSizeInfo: ModelSizeInfo? = nil
 
     func initialize() async throws {
         briaRmbgModel = try BriaRMBG1_4(configuration: MLModelConfiguration())
@@ -30,7 +30,7 @@ class HuggingFaceApproach: BGRemovalApproach {
         }
 
         // Track memory before inference
-        let memoryBefore = ImageProcessingHelpers.getMemoryUsage()
+        let memoryBefore = MetricsHelper.getMemoryUsage()
 
         // Run inference with timing (async on background queue)
         let startTime = Date()
@@ -48,19 +48,17 @@ class HuggingFaceApproach: BGRemovalApproach {
         }
 
         // Apply mask to input image
-        guard let processedImage = ImageProcessingHelpers.applyMask(mask, to: image) else {
+        guard let processedImage = ImageProcessingHelper.applyMask(mask, to: image) else {
             throw BGRemovalError.processingFailed("Failed to apply mask")
         }
 
         // Track peak memory after inference
-        let memoryAfter = ImageProcessingHelpers.getMemoryUsage()
+        let memoryAfter = MetricsHelper.getMemoryUsage()
         let peakMemoryUsage = memoryAfter > memoryBefore ? memoryAfter - memoryBefore : 0
 
         let metrics = InferenceMetrics(
             inferenceTime: inferenceTime,
-            peakMemoryUsage: peakMemoryUsage,
-            modelLoadTime: nil,
-            isColdStart: false
+            peakMemoryUsage: peakMemoryUsage
         )
         return BGRemovalResult(processedImage: processedImage, mask: mask, metrics: metrics)
     }

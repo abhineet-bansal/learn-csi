@@ -1,8 +1,9 @@
 //
-//  BenchmarkView.swift
+//  BechmarkView.swift
 //  BGRemover
+//  Automated benchmark view for execution on test data
 //
-//  Automated benchmark mode UI
+//  Created by Abhineet Bansal on 27/1/2026.
 //
 
 import SwiftUI
@@ -10,9 +11,6 @@ import SwiftUI
 struct BenchmarkView: View {
     @EnvironmentObject var appState: AppState
     @StateObject private var benchmarkRunner = BenchmarkRunner()
-
-    @State private var selectedApproaches: Set<String> = Set(["Vision API", "Core ML Zoo", "HuggingFace"])
-    @State private var iterations = 3
 
     var body: some View {
         ScrollView {
@@ -49,7 +47,7 @@ struct BenchmarkView: View {
                     .padding()
                 }
                 .buttonStyle(.borderedProminent)
-                .disabled(benchmarkRunner.isRunning || selectedApproaches.isEmpty)
+                .disabled(benchmarkRunner.isRunning)
                 .padding(.horizontal)
 
                 // Progress Section
@@ -114,14 +112,8 @@ struct BenchmarkView: View {
             return
         }
 
-        let selectedApproachObjects = appState.availableApproaches.filter { selectedApproaches.contains($0.name) }
+        let selectedApproachObjects = appState.availableApproaches
 
-        let config = BenchmarkConfig(
-            iterations: iterations
-        )
-
-        let runner = BenchmarkRunner(config: config)
-        // Note: We need to use the existing benchmarkRunner for state updates
         Task {
             await benchmarkRunner.runBenchmarks(approaches: selectedApproachObjects, testImages: testImages)
         }

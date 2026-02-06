@@ -1,8 +1,9 @@
 //
 //  VisionAPIApproach.swift
 //  BGRemover
-//
 //  Approach #1 for background removal: Using Apple's Vision API
+//
+//  Created by Abhineet Bansal on 27/1/2026.
 //
 
 import UIKit
@@ -12,7 +13,6 @@ class VisionAPIApproach: BGRemovalApproach {
     let name = "Vision API"
     private(set) var isModelLoaded = false
     private var maskRequest: GenerateForegroundInstanceMaskRequest?
-    var modelSizeInfo: ModelSizeInfo? = nil
 
     func initialize() async throws {
         maskRequest = GenerateForegroundInstanceMaskRequest()
@@ -28,7 +28,7 @@ class VisionAPIApproach: BGRemovalApproach {
             throw BGRemovalError.invalidImage
         }
         
-        let memoryBefore = ImageProcessingHelpers.getMemoryUsage()
+        let memoryBefore = MetricsHelper.getMemoryUsage()
         let startTime = Date()
         let handler = ImageRequestHandler(cgImage)
         
@@ -37,23 +37,24 @@ class VisionAPIApproach: BGRemovalApproach {
         }
 
         let maskedImageBuffer = try result.generateScaledMask(for: result.allInstances, scaledToImageFrom: handler)
-        guard let maskedImage = ImageProcessingHelpers.pixelBufferToUIImage(maskedImageBuffer, orientation: image.imageOrientation) else {
+        guard let maskedImage = ImageProcessingHelper.pixelBufferToUIImage(maskedImageBuffer, orientation: image.imageOrientation) else {
             throw BGRemovalError.processingFailed("Invalid result, couldn't create mask")
         }
         
-        guard let processedImage = ImageProcessingHelpers.applyMask(maskedImage, to: image) else {
+        guard let processedImage = ImageProcessingHelper.applyMask(maskedImage, to: image) else {
             throw BGRemovalError.processingFailed("Invalid result, couldn't apply mask")
         }
         
         let inferenceTime = Date().timeIntervalSince(startTime)
-        let memoryAfter = ImageProcessingHelpers.getMemoryUsage()
+        let memoryAfter = MetricsHelper.getMemoryUsage()
         let memoryUsage = memoryAfter > memoryBefore ? memoryAfter - memoryBefore : 0
 
-        let metrics = InferenceMetrics(inferenceTime: inferenceTime, peakMemoryUsage: memoryUsage, modelLoadTime: nil, isColdStart: false)
+        let metrics = InferenceMetrics(inferenceTime: inferenceTime, peakMemoryUsage: memoryUsage)
         return BGRemovalResult(processedImage: processedImage, mask: maskedImage, metrics: metrics)
     }
 
     func cleanup() {
+        maskRequest = nil
         isModelLoaded = false
     }
 }

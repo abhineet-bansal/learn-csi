@@ -1,8 +1,9 @@
 //
 //  BGRemovalApproach.swift
 //  BGRemover
-//
 //  Protocol defining the interface for all background removal approaches
+//
+//  Created by Abhineet Bansal on 27/1/2026.
 //
 
 import UIKit
@@ -19,8 +20,6 @@ struct BGRemovalResult {
 struct InferenceMetrics {
     let inferenceTime: TimeInterval             // in seconds
     let peakMemoryUsage: UInt64                 // in bytes
-    let modelLoadTime: TimeInterval?            // only for cold start
-    let isColdStart: Bool
     
     var inferenceTimeMs: Double {
          inferenceTime * 1000
@@ -35,16 +34,9 @@ struct InferenceMetrics {
 protocol BGRemovalApproach {
     var name: String { get }
     var isModelLoaded: Bool { get }
-    var modelSizeInfo: ModelSizeInfo? { get }
     func initialize() async throws
     func removeBackground(from image: UIImage) async throws -> BGRemovalResult
     func cleanup()
-}
-
-/// Information about model size
-struct ModelSizeInfo {
-    let modelFileSize: UInt64                   // in bytes
-    let compiledModelSize: UInt64?              // in bytes (if applicable)
 }
 
 /// Errors that can occur during background removal

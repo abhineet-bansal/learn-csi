@@ -1,8 +1,9 @@
 //
 //  ManualTestView.swift
 //  BGRemover
-//
 //  Manual testing mode UI for ad-hoc image testing
+//
+//  Created by Abhineet Bansal on 27/1/2026.
 //
 
 import SwiftUI
@@ -173,12 +174,6 @@ struct ManualTestView: View {
                         VStack(spacing: 12) {
                             MetricRow(title: "Inference Time", value: String(format: "%.2f ms", metrics.inferenceTimeMs))
                             MetricRow(title: "Memory Usage", value: String(format: "%.2f MB", metrics.memoryUsageMB))
-
-                            if let loadTime = metrics.modelLoadTime {
-                                MetricRow(title: "Model Load Time", value: String(format: "%.2f ms", loadTime * 1000))
-                            }
-
-                            MetricRow(title: "Cold Start", value: metrics.isColdStart ? "Yes" : "No")
                         }
                         .padding()
                         .background(Color(.systemGray6))
