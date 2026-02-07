@@ -26,7 +26,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.abans.bgremover.service.BenchmarkRunner
 import com.abans.bgremover.viewmodel.AppViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @Composable
 fun BenchmarkScreen(viewModel: AppViewModel) {
@@ -57,7 +59,9 @@ fun BenchmarkScreen(viewModel: AppViewModel) {
         Button(
             onClick = {
                 scope.launch {
-                    benchmarkRunner.runBenchmarks(approaches)
+                    withContext(Dispatchers.Default) {
+                        benchmarkRunner.runBenchmarks(approaches)
+                    }
                 }
             },
             enabled = !isRunning && approaches.isNotEmpty(),

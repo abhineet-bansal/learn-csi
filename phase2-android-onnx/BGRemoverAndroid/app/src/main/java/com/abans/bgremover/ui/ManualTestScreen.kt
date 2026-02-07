@@ -35,7 +35,9 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.unit.dp
 import com.abans.bgremover.model.BGRemovalResult
 import com.abans.bgremover.viewmodel.AppViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @Composable
 fun ManualTestScreen(viewModel: AppViewModel) {
@@ -125,12 +127,15 @@ fun ManualTestScreen(viewModel: AppViewModel) {
                         isProcessing = true
                         error = null
                         try {
-                            selectedApproach?.let { approach ->
-                                if (!approach.isModelLoaded) {
-                                    approach.initialize()
+                            val bgResult = withContext(Dispatchers.Default) {
+                                selectedApproach?.let { approach ->
+                                    if (!approach.isModelLoaded) {
+                                        approach.initialize()
+                                    }
+                                    approach.removeBackground(image)
                                 }
-                                result = approach.removeBackground(image)
                             }
+                            result = bgResult
                         } catch (e: Exception) {
                             error = e.message
                         } finally {

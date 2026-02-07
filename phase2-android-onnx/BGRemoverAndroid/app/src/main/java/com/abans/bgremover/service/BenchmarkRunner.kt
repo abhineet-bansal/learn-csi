@@ -6,9 +6,11 @@ import android.graphics.BitmapFactory
 import com.abans.bgremover.model.BenchmarkResult
 import com.abans.bgremover.utils.ImageHelper
 import com.abans.bgremover.utils.MetricsHelper
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.withContext
 
 data class TestImage(
     val name: String,
@@ -35,14 +37,18 @@ class BenchmarkRunner(private val context: Context) {
     }
 
     suspend fun runBenchmarks(approaches: List<BGRemovalApproach>) {
-        _isRunning.value = true
-        _results.value = emptyList()
-        _progress.value = 0f
+        withContext(Dispatchers.Main) {
+            _isRunning.value = true
+            _results.value = emptyList()
+            _progress.value = 0f
+        }
 
         val testImages = loadTestImages()
         if (testImages.isEmpty()) {
-            _currentStatus.value = "Error: No test images found"
-            _isRunning.value = false
+            withContext(Dispatchers.Main) {
+                _currentStatus.value = "Error: No test images found"
+                _isRunning.value = false
+            }
             return
         }
 
@@ -52,12 +58,16 @@ class BenchmarkRunner(private val context: Context) {
         val resultsList = mutableListOf<BenchmarkResult>()
 
         for (approach in approaches) {
-            _currentStatus.value = "Initializing ${approach.name}..."
+            withContext(Dispatchers.Main) {
+                _currentStatus.value = "Initializing ${approach.name}..."
+            }
 
             try {
                 approach.initialize()
             } catch (e: Exception) {
-                _currentStatus.value = "Error initializing ${approach.name}: ${e.message}"
+                withContext(Dispatchers.Main) {
+                    _currentStatus.value = "Error initializing ${approach.name}: ${e.message}"
+                }
                 continue
             }
 
@@ -65,7 +75,9 @@ class BenchmarkRunner(private val context: Context) {
                 val iterationResults = mutableListOf<BenchmarkResult>()
 
                 for (iteration in 1..ITERATIONS) {
-                    _currentStatus.value = "Testing ${approach.name} on ${testImage.name} (iteration $iteration/$ITERATIONS)..."
+                    withContext(Dispatchers.Main) {
+                        _currentStatus.value = "Testing ${approach.name} on ${testImage.name} (iteration $iteration/$ITERATIONS)..."
+                    }
 
                     try {
                         val removalResult = approach.removeBackground(testImage.image)
@@ -102,11 +114,15 @@ class BenchmarkRunner(private val context: Context) {
 
                         iterationResults.add(benchmarkResult)
                     } catch (e: Exception) {
-                        _currentStatus.value = "Error processing ${testImage.name} with ${approach.name}: ${e.message}"
+                        withContext(Dispatchers.Main) {
+                            _currentStatus.value = "Error processing ${testImage.name} with ${approach.name}: ${e.message}"
+                        }
                     }
 
                     completedRuns++
-                    _progress.value = completedRuns.toFloat() / totalRuns
+                    withContext(Dispatchers.Main) {
+                        _progress.value = completedRuns.toFloat() / totalRuns
+                    }
                 }
 
                 // Use median result
@@ -120,9 +136,11 @@ class BenchmarkRunner(private val context: Context) {
             approach.cleanup()
         }
 
-        _results.value = resultsList
-        _currentStatus.value = "Benchmark complete! Processed $completedRuns runs."
-        _isRunning.value = false
+        withContext(Dispatchers.Main) {
+            _results.value = resultsList
+            _currentStatus.value = "Benchmark complete! Processed $completedRuns runs."
+            _isRunning.value = false
+        }
 
         printSummary(resultsList)
     }
