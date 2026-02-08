@@ -215,8 +215,8 @@ fun ManualTestScreen(viewModel: AppViewModel) {
                         style = MaterialTheme.typography.titleSmall,
                         modifier = Modifier.padding(bottom = 4.dp)
                     )
-                    Text("Inference Time: ${String.format("%.2f", bgResult.metrics.inferenceTime * 1000)} ms")
-                    Text("Memory Usage: ${String.format("%.2f", bgResult.metrics.peakMemoryUsage / (1024.0 * 1024.0))} MB")
+                    Text("Inference Time: ${String.format("%.2f", bgResult.metrics.inferenceTimeMs)} ms")
+                    Text("Memory Usage: ${String.format("%.2f", bgResult.metrics.peakMemoryUsageBytes / (1024.0 * 1024.0))} MB")
                 }
             }
         }

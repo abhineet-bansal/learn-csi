@@ -134,8 +134,8 @@ fun BenchmarkResultCard(
     approachName: String,
     results: List<com.abans.bgremover.model.BenchmarkResult>
 ) {
-    val avgInferenceTime = results.map { it.inferenceTime }.average()
-    val avgMemory = results.map { it.memoryUsage }.average()
+    val avgInferenceTimeMs = results.map { it.inferenceTimeMs }.average()
+    val avgMemoryBytes = results.map { it.memoryUsageBytes }.average()
     val avgIoU = results.mapNotNull { it.iou }.takeIf { it.isNotEmpty() }?.average()
     val avgPixelAccuracy = results.mapNotNull { it.pixelAccuracy }.takeIf { it.isNotEmpty() }?.average()
     val avgF1 = results.mapNotNull { it.f1Score }.takeIf { it.isNotEmpty() }?.average()
@@ -161,12 +161,12 @@ fun BenchmarkResultCard(
             ) {
                 MetricCell(
                     title = "Avg Inference",
-                    value = String.format("%.2f ms", avgInferenceTime * 1000),
+                    value = String.format("%.2f ms", avgInferenceTimeMs),
                     modifier = Modifier.weight(1f)
                 )
                 MetricCell(
                     title = "Avg Memory",
-                    value = String.format("%.2f MB", avgMemory / (1024.0 * 1024.0)),
+                    value = String.format("%.2f MB", avgMemoryBytes / (1024.0 * 1024.0)),
                     modifier = Modifier.weight(1f)
                 )
                 MetricCell(

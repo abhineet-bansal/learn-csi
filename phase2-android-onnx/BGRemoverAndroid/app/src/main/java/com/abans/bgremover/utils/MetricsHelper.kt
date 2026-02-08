@@ -1,12 +1,14 @@
 package com.abans.bgremover.utils
 
 import android.graphics.Bitmap
+import android.os.Debug
 
 object MetricsHelper {
 
     fun getMemoryUsage(): Long {
-        val runtime = Runtime.getRuntime()
-        return runtime.totalMemory() - runtime.freeMemory()
+        val memoryInfo = Debug.MemoryInfo()
+        Debug.getMemoryInfo(memoryInfo)
+        return memoryInfo.totalPss * 1024L // PSS in KB -> bytes
     }
 
     fun calculateQualityMetrics(

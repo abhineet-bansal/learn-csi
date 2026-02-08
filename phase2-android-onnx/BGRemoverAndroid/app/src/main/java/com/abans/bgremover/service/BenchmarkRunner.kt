@@ -37,14 +37,15 @@ class BenchmarkRunner(private val context: Context) {
     }
 
     suspend fun runBenchmarks(approaches: List<BGRemovalApproach>) {
+        val startTime = System.currentTimeMillis()
         withContext(Dispatchers.Main) {
             _isRunning.value = true
             _results.value = emptyList()
             _progress.value = 0f
         }
 
-        val testImages = loadTestImages()
-        if (testImages.isEmpty()) {
+        val testImageNames = getTestImageNames()
+        if (testImageNames.isEmpty()) {
             withContext(Dispatchers.Main) {
                 _currentStatus.value = "Error: No test images found"
                 _isRunning.value = false
@@ -52,7 +53,7 @@ class BenchmarkRunner(private val context: Context) {
             return
         }
 
-        val totalRuns = approaches.size * testImages.size * ITERATIONS
+        val totalRuns = approaches.size * testImageNames.size * ITERATIONS
         var completedRuns = 0
 
         val resultsList = mutableListOf<BenchmarkResult>()
@@ -71,12 +72,15 @@ class BenchmarkRunner(private val context: Context) {
                 continue
             }
 
-            for (testImage in testImages) {
+            for (imageName in testImageNames) {
+                // Load image only when needed (lazy loading)
+                val testImage = loadTestImage(imageName) ?: continue
                 val iterationResults = mutableListOf<BenchmarkResult>()
 
                 for (iteration in 1..ITERATIONS) {
                     withContext(Dispatchers.Main) {
                         _currentStatus.value = "Testing ${approach.name} on ${testImage.name} (iteration $iteration/$ITERATIONS)..."
+                        println("===DBG===: Testing ${approach.name} on ${testImage.name} (iteration $iteration/$ITERATIONS)...")
                     }
 
                     try {
@@ -87,14 +91,9 @@ class BenchmarkRunner(private val context: Context) {
                         var f1Score: Double? = null
 
                         if (testImage.groundTruth != null) {
-                            val resizedMask = ImageHelper.resizeBitmap(
-                                removalResult.mask,
-                                testImage.groundTruth.width,
-                                testImage.groundTruth.height
-                            )
                             val qualityMetrics = MetricsHelper.calculateQualityMetrics(
                                 testImage.groundTruth,
-                                resizedMask
+                                removalResult.mask
                             )
                             iou = qualityMetrics.first
                             pixelAccuracy = qualityMetrics.second
@@ -105,14 +104,18 @@ class BenchmarkRunner(private val context: Context) {
                             approachName = approach.name,
                             imageName = testImage.name,
                             imageSize = Pair(testImage.image.width, testImage.image.height),
-                            inferenceTime = removalResult.metrics.inferenceTime,
-                            memoryUsage = removalResult.metrics.peakMemoryUsage,
+                            inferenceTimeMs = removalResult.metrics.inferenceTimeMs,
+                            memoryUsageBytes = removalResult.metrics.peakMemoryUsageBytes,
                             iou = iou,
                             pixelAccuracy = pixelAccuracy,
                             f1Score = f1Score
                         )
 
                         iterationResults.add(benchmarkResult)
+
+                        // Recycle result bitmaps after extracting metrics
+                        removalResult.mask.recycle()
+                        removalResult.processedImage.recycle()
                     } catch (e: Exception) {
                         withContext(Dispatchers.Main) {
                             _currentStatus.value = "Error processing ${testImage.name} with ${approach.name}: ${e.message}"
@@ -125,8 +128,12 @@ class BenchmarkRunner(private val context: Context) {
                     }
                 }
 
+                // Recycle test image and ground truth after all iterations
+                testImage.image.recycle()
+                testImage.groundTruth?.recycle()
+
                 // Use median result
-                val medianResult = iterationResults.sortedBy { it.inferenceTime }
+                val medianResult = iterationResults.sortedBy { it.inferenceTimeMs }
                     .getOrNull(ITERATIONS / 2)
                 if (medianResult != null) {
                     resultsList.add(medianResult)
@@ -135,6 +142,9 @@ class BenchmarkRunner(private val context: Context) {
 
             approach.cleanup()
         }
+
+        val totalBenchmarkTimeMs = (System.currentTimeMillis() - startTime)
+        println("===DBG===: Total Benchmark Run time ${totalBenchmarkTimeMs / 1000.0} sec")
 
         withContext(Dispatchers.Main) {
             _results.value = resultsList
@@ -145,35 +155,46 @@ class BenchmarkRunner(private val context: Context) {
         printSummary(resultsList)
     }
 
-    private fun loadTestImages(): List<TestImage> {
-        val testImages = mutableListOf<TestImage>()
+    private fun getTestImageNames(): List<String> {
+        val imageNames = mutableListOf<String>()
 
         for (i in 1..30) {
             val imageNum = String.format("%02d", i)
             val imageName = "img$imageNum"
-            val maskName = "mask$imageNum"
 
             try {
-                val imageStream = context.assets.open("$imageName.jpg")
-                val image = BitmapFactory.decodeStream(imageStream)
-                imageStream.close()
-
-                var groundTruth: Bitmap? = null
-                try {
-                    val maskStream = context.assets.open("$maskName.png")
-                    groundTruth = BitmapFactory.decodeStream(maskStream)
-                    maskStream.close()
-                } catch (e: Exception) {
-                    // Ground truth not available for this image
-                }
-
-                testImages.add(TestImage(imageName, image, groundTruth))
+                // Just check if the image exists
+                context.assets.open("$imageName.jpg").close()
+                imageNames.add(imageName)
             } catch (e: Exception) {
                 // Image not found, skip
             }
         }
 
-        return testImages
+        return imageNames
+    }
+
+    private fun loadTestImage(imageName: String): TestImage? {
+        val maskName = imageName.replace("img", "mask")
+
+        return try {
+            val imageStream = context.assets.open("$imageName.jpg")
+            val image = BitmapFactory.decodeStream(imageStream)
+            imageStream.close()
+
+            var groundTruth: Bitmap? = null
+            try {
+                val maskStream = context.assets.open("$maskName.png")
+                groundTruth = BitmapFactory.decodeStream(maskStream)
+                maskStream.close()
+            } catch (e: Exception) {
+                // Ground truth not available for this image
+            }
+
+            TestImage(imageName, image, groundTruth)
+        } catch (e: Exception) {
+            null
+        }
     }
 
     private fun printSummary(results: List<BenchmarkResult>) {
@@ -187,10 +208,10 @@ class BenchmarkRunner(private val context: Context) {
             println("\n📱 $approach")
             println("-" .repeat(80))
 
-            val avgInference = approachResults.map { it.inferenceTime }.average()
-            val avgMemory = approachResults.map { it.memoryUsage.toDouble() }.average()
+            val avgInference = approachResults.map { it.inferenceTimeMs }.average()
+            val avgMemory = approachResults.map { it.memoryUsageBytes.toDouble() }.average()
 
-            println(String.format("  Avg Inference Time: %.2f ms", avgInference * 1000))
+            println(String.format("  Avg Inference Time: %.2f ms", avgInference))
             println(String.format("  Avg Memory Usage: %.2f MB", avgMemory / (1024.0 * 1024.0)))
 
             val resultsWithQuality = approachResults.filter {
