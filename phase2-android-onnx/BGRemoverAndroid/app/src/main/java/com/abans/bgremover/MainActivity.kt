@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import com.abans.bgremover.service.VisionApiApproach
 import com.abans.bgremover.ui.MainScreen
 import com.abans.bgremover.ui.theme.BGRemoverTheme
 import com.abans.bgremover.viewmodel.AppViewModel
@@ -18,8 +19,9 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         // Initialize approaches
-        // TODO: Create actual approach implementations
-        viewModel.initializeApproaches(emptyList())
+        viewModel.initializeApproaches(listOf(
+            VisionApiApproach()
+        ))
 
         setContent {
             BGRemoverTheme {
