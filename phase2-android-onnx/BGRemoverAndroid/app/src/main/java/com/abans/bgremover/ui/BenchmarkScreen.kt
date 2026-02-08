@@ -1,6 +1,8 @@
 package com.abans.bgremover.ui
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -106,48 +108,120 @@ fun BenchmarkScreen(viewModel: AppViewModel) {
         }
 
         if (results.isNotEmpty()) {
-            Card(
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = "Results",
-                        style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.padding(bottom = 8.dp)
+            Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+                Text(
+                    text = "Results (${results.size})",
+                    style = MaterialTheme.typography.headlineSmall,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+
+                val groupedResults = results.groupBy { it.approachName }
+
+                groupedResults.forEach { (approachName, approachResults) ->
+                    BenchmarkResultCard(
+                        approachName = approachName,
+                        results = approachResults
                     )
-
-                    val groupedResults = results.groupBy { it.approachName }
-
-                    groupedResults.forEach { (approachName, approachResults) ->
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = approachName,
-                            style = MaterialTheme.typography.titleSmall
-                        )
-
-                        val avgInferenceTime = approachResults.map { it.inferenceTime }.average()
-                        val avgMemory = approachResults.map { it.memoryUsage }.average()
-                        val avgIoU = approachResults.mapNotNull { it.iou }.average()
-                        val avgPixelAccuracy = approachResults.mapNotNull { it.pixelAccuracy }.average()
-                        val avgF1 = approachResults.mapNotNull { it.f1Score }.average()
-
-                        Column(modifier = Modifier.padding(start = 16.dp, top = 8.dp)) {
-                            Text("Images: ${approachResults.size}")
-                            Text("Avg Inference Time: ${String.format("%.2f", avgInferenceTime * 1000)} ms")
-                            Text("Avg Memory: ${String.format("%.2f", avgMemory / (1024.0 * 1024.0))} MB")
-                            if (!avgIoU.isNaN()) {
-                                Text("Avg IoU: ${String.format("%.4f", avgIoU)}")
-                            }
-                            if (!avgPixelAccuracy.isNaN()) {
-                                Text("Avg Pixel Accuracy: ${String.format("%.4f", avgPixelAccuracy)}")
-                            }
-                            if (!avgF1.isNaN()) {
-                                Text("Avg F1 Score: ${String.format("%.4f", avgF1)}")
-                            }
-                        }
-                    }
+                    Spacer(modifier = Modifier.height(12.dp))
                 }
             }
         }
+    }
+}
+
+@Composable
+fun BenchmarkResultCard(
+    approachName: String,
+    results: List<com.abans.bgremover.model.BenchmarkResult>
+) {
+    val avgInferenceTime = results.map { it.inferenceTime }.average()
+    val avgMemory = results.map { it.memoryUsage }.average()
+    val avgIoU = results.mapNotNull { it.iou }.takeIf { it.isNotEmpty() }?.average()
+    val avgPixelAccuracy = results.mapNotNull { it.pixelAccuracy }.takeIf { it.isNotEmpty() }?.average()
+    val avgF1 = results.mapNotNull { it.f1Score }.takeIf { it.isNotEmpty() }?.average()
+
+    Card(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            Text(
+                text = approachName,
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(bottom = 12.dp)
+            )
+
+            // Performance Metrics Row
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                MetricCell(
+                    title = "Avg Inference",
+                    value = String.format("%.2f ms", avgInferenceTime * 1000),
+                    modifier = Modifier.weight(1f)
+                )
+                MetricCell(
+                    title = "Avg Memory",
+                    value = String.format("%.2f MB", avgMemory / (1024.0 * 1024.0)),
+                    modifier = Modifier.weight(1f)
+                )
+                MetricCell(
+                    title = "Images",
+                    value = "${results.size}",
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            // Quality Metrics Row (if available)
+            if (avgIoU != null || avgPixelAccuracy != null || avgF1 != null) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    MetricCell(
+                        title = "Avg IoU",
+                        value = avgIoU?.let { String.format("%.4f", it) } ?: "N/A",
+                        modifier = Modifier.weight(1f)
+                    )
+                    MetricCell(
+                        title = "Avg Pixel Accuracy",
+                        value = avgPixelAccuracy?.let { String.format("%.4f", it) } ?: "N/A",
+                        modifier = Modifier.weight(1f)
+                    )
+                    MetricCell(
+                        title = "Avg F1 Score",
+                        value = avgF1?.let { String.format("%.4f", it) } ?: "N/A",
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun MetricCell(
+    title: String,
+    value: String,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = androidx.compose.ui.text.font.FontWeight.Medium
+        )
     }
 }
