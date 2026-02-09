@@ -16,8 +16,9 @@ import org.tensorflow.lite.support.image.TensorImage
 import org.tensorflow.lite.support.image.ops.ResizeOp
 import androidx.core.graphics.scale
 
+// Using tensorflow/deeplabv3 model
 class LiteRTZooApproach(applicationContext: Context) : BGRemovalApproach {
-    override val name: String = "Lite RT Model Zoo"
+    override val name: String = "TensorFlow DeepLabV3"
 
     @Volatile
     private var _isModelLoaded = false
@@ -109,12 +110,14 @@ class LiteRTZooApproach(applicationContext: Context) : BGRemovalApproach {
         // The shape of output buffer is [1, 257, 257, 21]
         // Meaning - 257 x 257 array (row indexed). For each pixel, the 21 values are probabilities of each class
         // Class 0 is background, and other classes are object types
+        val width = 257
+        val height = 257
 
-        val maskArray = ByteArray(257 * 257)
+        val maskArray = ByteArray(width * height)
 
-        for (row in 0 until 257) {
-            for (col in 0 until 257) {
-                val index = ((row * 257) + col) * 21 // Start of this pixel's 21 values
+        for (row in 0 until height) {
+            for (col in 0 until width) {
+                val index = ((row * height) + col) * 21 // Start of this pixel's 21 values
 
                 // Find the class with the max probability
                 var maxClass = 0
@@ -126,19 +129,19 @@ class LiteRTZooApproach(applicationContext: Context) : BGRemovalApproach {
                     }
                 }
 
-                maskArray[row * 257 + col] = if (maxClass == 0) 0 else 1
+                maskArray[row * height + col] = if (maxClass == 0) 0 else 1
             }
         }
 
         // Convert byte mask (0 or 1) to ARGB pixels (black or white)
-        val pixels = IntArray(257 * 257)
+        val pixels = IntArray(width * height)
         for (i in maskArray.indices) {
             // 0 -> black (0xFF000000), 1 -> white (0xFFFFFFFF)
             pixels[i] = if (maskArray[i] == 0.toByte()) 0xFF000000.toInt() else 0xFFFFFFFF.toInt()
         }
 
         // Create 257x257 mask bitmap from pixel array
-        val maskBitmap = Bitmap.createBitmap(pixels, 257, 257, Bitmap.Config.ARGB_8888)
+        val maskBitmap = Bitmap.createBitmap(pixels, width, height, Bitmap.Config.ARGB_8888)
 
         // Resize to original image dimensions
         val resizedMask = maskBitmap.scale(originalImage.width, originalImage.height)
