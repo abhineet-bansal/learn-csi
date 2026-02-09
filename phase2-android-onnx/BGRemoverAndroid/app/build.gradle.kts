@@ -60,4 +60,9 @@ dependencies {
     // For Vision API approach
     implementation("com.google.android.gms:play-services-mlkit-subject-segmentation:16.0.0-beta1")
 
+    // For running custom models
+    implementation("com.google.ai.edge.litert:litert:2.1.0")
+    implementation("com.google.ai.edge.litert:litert-support-api:1.4.1") {
+        exclude(group = "com.google.ai.edge.litert", module = "litert-api")
+    }
 }

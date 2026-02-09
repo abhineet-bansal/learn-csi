@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import com.abans.bgremover.service.LiteRTZooApproach
 import com.abans.bgremover.service.VisionApiApproach
 import com.abans.bgremover.ui.MainScreen
 import com.abans.bgremover.ui.theme.BGRemoverTheme
@@ -20,7 +21,8 @@ class MainActivity : ComponentActivity() {
 
         // Initialize approaches
         viewModel.initializeApproaches(listOf(
-            VisionApiApproach()
+            VisionApiApproach(),
+            LiteRTZooApproach(this.applicationContext)
         ))
 
         setContent {
